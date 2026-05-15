@@ -38,6 +38,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
 # TODO(stunya) Figure out why this is required.
 separate_arguments(CMDLINE_LINK_OPTIONS UNIX_COMMAND ${CMAKE_SHARED_LINKER_FLAGS})
@@ -199,7 +200,7 @@ findorfetch(
   LIBRARY_NAME
   eigen
   GIT_REPO
-  https://gitlab.com/libeigen/eigen
+  https://github.com/pfrommerd/eigen
   GIT_TAG
   ea13a98decd497a8c5588fb5de71b57bcf10d864
   TARGETS
@@ -226,9 +227,15 @@ findorfetch(
 )
 
 # ==================== MUJOCO PYTHON BINDINGS ==================================
-set(SIMULATE_BUILD_EXECUTABLE OFF)
-set(SIMULATE_GLFW_DYNAMIC_SYMBOLS ON)
-add_subdirectory(simulate)
+option(MUJOCO_PYTHON_BUILD_SIMULATE "Build the _simulate extension module." ON)
+if(MUJOCO_PYTHON_BUILD_SIMULATE)
+  set(SIMULATE_BUILD_EXECUTABLE OFF)
+  set(SIMULATE_GLFW_DYNAMIC_SYMBOLS ON)
+  if(UNIX AND NOT APPLE)
+    set(GLFW_BUILD_WAYLAND OFF CACHE BOOL "" FORCE)
+  endif()
+  add_subdirectory(simulate)
+endif()
 
 add_subdirectory(util)
 
@@ -478,16 +485,18 @@ target_link_libraries(
           structs_header
 )
 
-mujoco_pybind11_module(_simulate simulate.cc)
-target_link_libraries(
-  _simulate
-  PRIVATE mujoco
-          mujoco::libmujoco_simulate
-          glfw
-          errors_header
-          raw
-          structs_header
-)
+if(MUJOCO_PYTHON_BUILD_SIMULATE)
+  mujoco_pybind11_module(_simulate simulate.cc)
+  target_link_libraries(
+    _simulate
+    PRIVATE mujoco
+            mujoco::libmujoco_simulate
+            glfw
+            errors_header
+            raw
+            structs_header
+  )
+endif()
 
 set(LIBRARIES_FOR_WHEEL
     "$<TARGET_FILE:_callbacks>"
@@ -497,11 +506,13 @@ set(LIBRARIES_FOR_WHEEL
     "$<TARGET_FILE:_functions>"
     "$<TARGET_FILE:_render>"
     "$<TARGET_FILE:_rollout>"
-    "$<TARGET_FILE:_simulate>"
     "$<TARGET_FILE:_specs>"
     "$<TARGET_FILE:_structs>"
     "$<TARGET_FILE:mujoco>"
 )
+if(MUJOCO_PYTHON_BUILD_SIMULATE)
+  list(APPEND LIBRARIES_FOR_WHEEL "$<TARGET_FILE:_simulate>")
+endif()
 
 if(APPLE)
   add_executable(mjpython mjpython/mjpython.mm)
@@ -533,11 +544,13 @@ if(MUJOCO_PYTHON_MAKE_WHEEL)
     _functions
     _render
     _rollout
-    _simulate
     _specs
     _structs
     mujoco
   )
+  if(MUJOCO_PYTHON_BUILD_SIMULATE)
+    add_dependencies(wheel _simulate)
+  endif()
   if(APPLE)
     add_dependencies(wheel mjpython)
   endif()

@@ -37,6 +37,12 @@ MUJOCO_PLUGIN_PATH = 'MUJOCO_PLUGIN_PATH'
 _BUNDLED_MUJOCO_SOURCE_DIR = os.path.join(
     os.path.dirname(__file__), 'mujoco', '_src'
 )
+_BUNDLED_MUJOCO_SOURCE_EXISTS = os.path.exists(
+    os.path.join(_BUNDLED_MUJOCO_SOURCE_DIR, 'CMakeLists.txt')
+)
+_BUILD_SIMULATE_EXTENSION = (
+    MUJOCO_PATH in os.environ or not _BUNDLED_MUJOCO_SOURCE_EXISTS
+)
 _PLUGIN_LIBRARY_NAME_HINTS = (
     'actuator',
     'elasticity',
@@ -350,6 +356,10 @@ class BuildCMakeExtension(build_ext.build_ext):
         ),
         '-DCMAKE_Fortran_COMPILER:STRING=',
         '-DBUILD_TESTING:BOOL=OFF',
+        (
+            f'-DMUJOCO_PYTHON_BUILD_SIMULATE:BOOL='
+            f'{"ON" if _BUILD_SIMULATE_EXTENSION else "OFF"}'
+        ),
     ]
 
     if self._mujoco_framework_path is not None:
@@ -455,10 +465,10 @@ setuptools.setup(
         CMakeExtension('mujoco._functions'),
         CMakeExtension('mujoco._render'),
         CMakeExtension('mujoco._rollout'),
-        CMakeExtension('mujoco._simulate'),
         CMakeExtension('mujoco._specs'),
         CMakeExtension('mujoco._structs'),
-    ],
+    ]
+    + ([CMakeExtension('mujoco._simulate')] if _BUILD_SIMULATE_EXTENSION else []),
     scripts=['mujoco/mjpython/mjpython.py']
     if platform.system() == 'Darwin'
     else [],
