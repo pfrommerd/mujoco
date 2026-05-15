@@ -34,6 +34,16 @@ MUJOCO_CMAKE = 'MUJOCO_CMAKE'
 MUJOCO_CMAKE_ARGS = 'MUJOCO_CMAKE_ARGS'
 MUJOCO_PATH = 'MUJOCO_PATH'
 MUJOCO_PLUGIN_PATH = 'MUJOCO_PLUGIN_PATH'
+_BUNDLED_MUJOCO_SOURCE_DIR = os.path.join(
+    os.path.dirname(__file__), 'mujoco', '_src'
+)
+_PLUGIN_LIBRARY_NAME_HINTS = (
+    'actuator',
+    'elasticity',
+    'sensor',
+    'sdf_plugin',
+    'usd_decoder_plugin',
+)
 
 EXT_PREFIX = 'mujoco.'
 
@@ -146,22 +156,48 @@ class BuildCMakeExtension(build_ext.build_ext):
 
   def run(self):
     self._is_apple = platform.system() == 'Darwin'
-    (
-        self._mujoco_library_path,
-        self._mujoco_include_path,
-        self._mujoco_plugins_path,
-        self._mujoco_framework_path,
-    ) = self._find_mujoco()
+    self._mujoco_framework_path = None
+    self._mujoco_library_path = None
+    self._mujoco_include_path = None
+    self._mujoco_plugins_path = None
+    self._use_bundled_mujoco_source = False
+    self._configure_mujoco_inputs()
     self._configure_cmake()
     for ext in self.extensions:
       assert ext.name.startswith(EXT_PREFIX)
       assert '.' not in ext.name[len(EXT_PREFIX) :]
       self.build_extension(ext)
-    self._copy_external_libraries()
-    self._copy_mujoco_headers()
-    self._copy_plugin_libraries()
+    if self._use_bundled_mujoco_source:
+      self._copy_bundled_mujoco_libraries()
+      self._copy_bundled_mujoco_headers()
+      self._copy_bundled_plugin_libraries()
+    else:
+      self._copy_external_libraries()
+      self._copy_mujoco_headers()
+      self._copy_plugin_libraries()
     if self._is_apple:
       self._copy_mjpython()
+
+  def _configure_mujoco_inputs(self):
+    if MUJOCO_PATH in os.environ:
+      (
+          self._mujoco_library_path,
+          self._mujoco_include_path,
+          self._mujoco_plugins_path,
+          self._mujoco_framework_path,
+      ) = self._find_mujoco()
+      return
+
+    bundled_cmake_file = os.path.join(_BUNDLED_MUJOCO_SOURCE_DIR, 'CMakeLists.txt')
+    if os.path.exists(bundled_cmake_file):
+      self._use_bundled_mujoco_source = True
+      self._mujoco_include_path = os.path.join(_BUNDLED_MUJOCO_SOURCE_DIR, 'include')
+      return
+
+    raise RuntimeError(
+        f'Neither {MUJOCO_PATH} environment variable nor bundled MuJoCo source'
+        ' tree are available'
+    )
 
   def _find_mujoco(self):
     if MUJOCO_PATH not in os.environ:
@@ -197,6 +233,52 @@ class BuildCMakeExtension(build_ext.build_ext):
           shutil.copyfile(
               os.path.join(directory, filename), os.path.join(dst, filename)
           )
+
+  def _copy_bundled_mujoco_libraries(self):
+    dst = os.path.dirname(self.get_ext_fullpath(self.extensions[0].name))
+    copied = []
+    for directory, _, filenames in os.walk(self.build_temp):
+      for pattern in get_external_lib_patterns():
+        for filename in fnmatch.filter(filenames, pattern):
+          src = os.path.join(directory, filename)
+          out = os.path.join(dst, filename)
+          shutil.copyfile(src, out)
+          copied.append(out)
+    if not copied:
+      raise RuntimeError(
+          f'Cannot find built MuJoCo library files in {self.build_temp}'
+      )
+
+  def _copy_bundled_plugin_libraries(self):
+    dst = os.path.join(
+        os.path.dirname(self.get_ext_fullpath(self.extensions[0].name)),
+        'plugin',
+    )
+    copied = 0
+    os.makedirs(dst, exist_ok=True)
+    for directory, _, filenames in os.walk(self.build_temp):
+      for filename in filenames:
+        lowercase_name = filename.lower()
+        if not any(hint in lowercase_name for hint in _PLUGIN_LIBRARY_NAME_HINTS):
+          continue
+        if platform.system() == 'Windows':
+          if not lowercase_name.endswith('.dll'):
+            continue
+        elif platform.system() == 'Darwin':
+          if not lowercase_name.endswith('.dylib'):
+            continue
+        elif '.so' not in lowercase_name:
+          continue
+        shutil.copyfile(os.path.join(directory, filename), os.path.join(dst, filename))
+        copied += 1
+    if not copied:
+      logging.warning(
+          'No bundled plugin shared libraries were found in build output at %s',
+          self.build_temp,
+      )
+
+  def _copy_bundled_mujoco_headers(self):
+    self._copy_mujoco_headers()
 
   def _copy_plugin_libraries(self):
     dst = os.path.join(
@@ -273,6 +355,10 @@ class BuildCMakeExtension(build_ext.build_ext):
     if self._mujoco_framework_path is not None:
       cmake_args.extend([
           f'-DMUJOCO_FRAMEWORK_DIR:PATH={self._mujoco_framework_path}',
+      ])
+    elif self._use_bundled_mujoco_source:
+      cmake_args.extend([
+          f'-DMUJOCO_PYTHON_MUJOCO_SOURCE_DIR:PATH={_BUNDLED_MUJOCO_SOURCE_DIR}',
       ])
     else:
       cmake_args.extend([

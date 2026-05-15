@@ -70,6 +70,32 @@ find_package(Python3 COMPONENTS Interpreter Development)
 
 include(FindOrFetch)
 
+set(MUJOCO_PYTHON_MUJOCO_SOURCE_DIR
+    ""
+    CACHE PATH "Path to bundled MuJoCo source tree for python package builds."
+)
+if(NOT MUJOCO_PYTHON_MUJOCO_SOURCE_DIR
+   AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/_src/CMakeLists.txt"
+)
+  set(MUJOCO_PYTHON_MUJOCO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/_src")
+endif()
+
+if(MUJOCO_PYTHON_MUJOCO_SOURCE_DIR AND NOT TARGET mujoco)
+  message("Building bundled MuJoCo source from ${MUJOCO_PYTHON_MUJOCO_SOURCE_DIR}")
+  set(MUJOCO_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+  set(MUJOCO_BUILD_SIMULATE OFF CACHE BOOL "" FORCE)
+  set(MUJOCO_BUILD_STUDIO OFF CACHE BOOL "" FORCE)
+  set(MUJOCO_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+  set(MUJOCO_TEST_PYTHON_UTIL OFF CACHE BOOL "" FORCE)
+  set(MUJOCO_WITH_USD OFF CACHE BOOL "" FORCE)
+  set(MUJOCO_USE_FILAMENT OFF CACHE BOOL "" FORCE)
+  add_subdirectory(
+    "${MUJOCO_PYTHON_MUJOCO_SOURCE_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}/mujoco_src"
+    EXCLUDE_FROM_ALL
+  )
+endif()
+
 # ==================== MUJOCO LIBRARY ==========================================
 if(NOT TARGET mujoco)
   add_library(

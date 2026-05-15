@@ -811,26 +811,15 @@ Building from source
    ``mujoco-x.y.z.tar.gz`` file (where ``x.y.z`` is the version number).
 
 7. Use the generated source distribution to build and install the bindings.
-   You'll need to specify the path to the MuJoCo library you downloaded
-   or built and installed earlier in the ``MUJOCO_PATH`` environment
-   variable, and the path to the MuJoCo plugin directory in the
-   ``MUJOCO_PLUGIN_PATH`` environment variable. You can point the
-   ``MUJOCO_PLUGIN_PATH`` environment variable to the ``plugin``
-   folder of the MuJoCo codebase you cloned.
-
-   .. note::
-      For macOS, the files need to be extracted from the DMG.
-      Once you mounted it as in step 2, the ``mujoco.framework`` directory can be found in ``/Volumes/MuJoCo``,
-      and the plugins directory can be found in ``/Volumes/MuJoCo/MuJoCo.app/Contents/MacOS/mujoco_plugin``.
-      Those two directories can be copied out somewhere convenient, or you can use
-      ``MUJOCO_PATH=/Volumes/MuJoCo MUJOCO_PLUGIN_PATH=/Volumes/MuJoCo/MuJoCo.app/Contents/MacOS/mujoco_plugin``.
+   The generated sdist bundles the MuJoCo C/C++ source tree and builds it as
+   part of installation, so you can install directly with ``pip`` or ``uv``
+   without setting ``MUJOCO_PATH`` and ``MUJOCO_PLUGIN_PATH``.
 
    .. code-block:: shell
 
-      cd dist
-      MUJOCO_PATH=/PATH/TO/MUJOCO \
-      MUJOCO_PLUGIN_PATH=/PATH/TO/MUJOCO/PLUGIN \
-      pip install mujoco-x.y.z.tar.gz
+       cd dist
+       pip install mujoco-x.y.z.tar.gz
+       uv pip install mujoco-x.y.z.tar.gz
 
 The Python bindings should now be installed! To check that they've been
 successfully installed, ``cd`` outside of the ``mujoco`` directory and run
