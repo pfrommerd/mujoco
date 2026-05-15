@@ -58,6 +58,13 @@ cp "${package_dir}"/../cmake/*.cmake mujoco/cmake
 # Copy over Simulate source code.
 cp -r "${package_dir}"/../simulate mujoco
 
+# Copy over MuJoCo source tree for in-sdist C/C++ builds.
+mkdir -p mujoco/_src
+cp "${package_dir}"/../CMakeLists.txt mujoco/_src
+for src_dir in cmake dist include model plugin src; do
+  cp -r "${package_dir}"/../"${src_dir}" mujoco/_src
+done
+
 python -m build . --sdist
 tar -tf dist/mujoco-*.tar.gz
 popd
