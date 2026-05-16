@@ -28,18 +28,12 @@ import weakref
 
 import glfw
 import mujoco
-try:
-  from mujoco import _simulate
-except ImportError as e:
-  _simulate = None
-  _SIMULATE_IMPORT_ERROR = e
-else:
-  _SIMULATE_IMPORT_ERROR = None
+from mujoco import _simulate
 import numpy as np
 
-if _simulate is not None:
-  if not glfw._glfw:  # pylint: disable=protected-access
-    raise RuntimeError('GLFW dynamic library handle is not available')
+if not glfw._glfw:  # pylint: disable=protected-access
+  raise RuntimeError('GLFW dynamic library handle is not available')
+else:
   _simulate.set_glfw_dlhandle(glfw._glfw._handle)  # pylint: disable=protected-access
 
 # Logarithmically spaced realtime slow-down coefficients (percent).
@@ -64,18 +58,7 @@ KeyCallbackType = Callable[[int], None]
 _LoaderWithPathType = Callable[[], Tuple[mujoco.MjModel, mujoco.MjData, str]]
 _InternalLoaderType = Union[LoaderType, _LoaderWithPathType]
 
-if _simulate is not None:
-  _Simulate = _simulate.Simulate
-else:
-  _Simulate = None
-
-
-def _require_simulate_extension() -> None:
-  if _simulate is None:
-    raise ImportError(
-        'mujoco._simulate is not available in this build. '
-        'The package was likely built without X11/GLFW support.'
-    ) from _SIMULATE_IMPORT_ERROR
+_Simulate = _simulate.Simulate
 
 
 class Handle:
@@ -474,7 +457,6 @@ def _launch_internal(
     show_right_ui: bool = True,
 ) -> None:
   """Internal API, so that the public API has more readable type annotations."""
-  _require_simulate_extension()
   if model is None and data is not None:
     raise ValueError('mjData is specified but mjModel is not')
   elif callable(model) and data is not None:
