@@ -41,7 +41,7 @@ _BUNDLED_MUJOCO_SOURCE_EXISTS = os.path.exists(
     os.path.join(_BUNDLED_MUJOCO_SOURCE_DIR, 'CMakeLists.txt')
 )
 _BUILD_SIMULATE_EXTENSION = (
-    MUJOCO_PATH in os.environ or not _BUNDLED_MUJOCO_SOURCE_EXISTS
+    MUJOCO_PATH in os.environ or _BUNDLED_MUJOCO_SOURCE_EXISTS
 )
 _PLUGIN_LIBRARY_NAME_HINTS = (
     'actuator',
