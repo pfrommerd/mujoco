@@ -101,6 +101,8 @@ if(NOT TARGET lodepng)
   endif()
 endif()
 
+get_target_property(LODEPNG_TYPE lodepng TYPE)
+
 # Simulate library
 add_library(platform_ui_adapter OBJECT)
 target_sources(
@@ -124,7 +126,14 @@ if(SIMULATE_GLFW_DYNAMIC_SYMBOLS)
 endif()
 add_library(mujoco::platform_ui_adapter ALIAS platform_ui_adapter)
 
-add_library(libmujoco_simulate STATIC $<TARGET_OBJECTS:platform_ui_adapter> $<TARGET_OBJECTS:lodepng>)
+if(LODEPNG_TYPE STREQUAL "OBJECT_LIBRARY")
+  add_library(
+    libmujoco_simulate STATIC $<TARGET_OBJECTS:platform_ui_adapter>
+                               $<TARGET_OBJECTS:lodepng>
+  )
+else()
+  add_library(libmujoco_simulate STATIC $<TARGET_OBJECTS:platform_ui_adapter>)
+endif()
 set_target_properties(libmujoco_simulate PROPERTIES OUTPUT_NAME simulate)
 add_library(mujoco::libmujoco_simulate ALIAS libmujoco_simulate)
 set_target_properties(libmujoco_simulate PROPERTIES PUBLIC_HEADER "simulate.h;platform_ui_adapter.h;glfw_adapter.h;glfw_dispatch.h;glfw_corevideo.h;array_safety.h")
@@ -139,10 +148,13 @@ target_include_directories(libmujoco_simulate
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/simulate>
     PRIVATE
-        ${lodepng_SOURCE_DIR}
+        $<TARGET_PROPERTY:lodepng,INTERFACE_INCLUDE_DIRECTORIES>
 )
 target_compile_options(libmujoco_simulate PRIVATE ${MUJOCO_SIMULATE_COMPILE_OPTIONS})
 target_link_libraries(libmujoco_simulate PUBLIC mujoco::mujoco)
+if(NOT LODEPNG_TYPE STREQUAL "OBJECT_LIBRARY")
+  target_link_libraries(libmujoco_simulate PRIVATE lodepng)
+endif()
 target_link_options(libmujoco_simulate PRIVATE ${MUJOCO_SIMULATE_LINK_OPTIONS})
 
 if(APPLE)
