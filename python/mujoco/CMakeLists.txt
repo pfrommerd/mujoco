@@ -228,6 +228,16 @@ findorfetch(
 
 # ==================== MUJOCO PYTHON BINDINGS ==================================
 option(MUJOCO_PYTHON_BUILD_SIMULATE "Build the _simulate extension module." ON)
+if(MUJOCO_PYTHON_BUILD_SIMULATE AND UNIX AND NOT APPLE)
+  find_package(X11 QUIET COMPONENTS Xrandr Xinerama Xcursor Xi)
+  if(NOT X11_FOUND)
+    message(
+      WARNING
+        "X11 development files were not found. Disabling mujoco._simulate build."
+    )
+    set(MUJOCO_PYTHON_BUILD_SIMULATE OFF)
+  endif()
+endif()
 if(MUJOCO_PYTHON_BUILD_SIMULATE)
   set(SIMULATE_BUILD_EXECUTABLE OFF)
   set(SIMULATE_GLFW_DYNAMIC_SYMBOLS ON)

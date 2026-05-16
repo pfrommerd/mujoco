@@ -169,6 +169,7 @@ class BuildCMakeExtension(build_ext.build_ext):
     self._use_bundled_mujoco_source = False
     self._configure_mujoco_inputs()
     self._configure_cmake()
+    self._remove_disabled_extensions_from_cmake_cache()
     for ext in self.extensions:
       assert ext.name.startswith(EXT_PREFIX)
       assert '.' not in ext.name[len(EXT_PREFIX) :]
@@ -183,6 +184,33 @@ class BuildCMakeExtension(build_ext.build_ext):
       self._copy_plugin_libraries()
     if self._is_apple:
       self._copy_mjpython()
+
+  def _remove_disabled_extensions_from_cmake_cache(self):
+    build_simulate = self._get_cmake_cache_bool('MUJOCO_PYTHON_BUILD_SIMULATE')
+    if build_simulate is False:
+      self.extensions = [
+          ext for ext in self.extensions if ext.name != 'mujoco._simulate'
+      ]
+      logging.warning(
+          'Skipping mujoco._simulate extension because CMake disabled '
+          'MUJOCO_PYTHON_BUILD_SIMULATE.'
+      )
+
+  def _get_cmake_cache_bool(self, key):
+    cache_path = os.path.join(self.build_temp, 'CMakeCache.txt')
+    if not os.path.exists(cache_path):
+      return None
+    with open(cache_path, encoding='utf-8') as f:
+      for line in f:
+        prefix = f'{key}:BOOL='
+        if line.startswith(prefix):
+          value = line[len(prefix) :].strip().upper()
+          if value in ('ON', 'TRUE', '1', 'YES'):
+            return True
+          if value in ('OFF', 'FALSE', '0', 'NO'):
+            return False
+          return None
+    return None
 
   def _configure_mujoco_inputs(self):
     if MUJOCO_PATH in os.environ:
