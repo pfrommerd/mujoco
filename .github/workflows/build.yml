@@ -21,6 +21,15 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install Linux dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            libxkbcommon-dev \
+            xorg-dev
+
       - name: Build Python sdist
         shell: bash
         env:
