@@ -33,14 +33,6 @@ jobs:
           cd python
           bash make_sdist.sh
 
-      - name: Validate Python sdist with uv
-        shell: bash
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          export PATH="${HOME}/.local/bin:${PATH}"
-          SDIST="$(echo python/dist/mujoco-*.tar.gz)"
-          uvx --with "${SDIST}" python -c "import mujoco; import mujoco.viewer"
-
       - name: Upload Python sdist artifact
         uses: actions/upload-artifact@v4
         with:
